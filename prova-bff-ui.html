@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- QA temporanea: click-through reale dell'analisi col modello via BFF.
+     Apre MSG-01, preme Analizza e aspetta la risposta vera del modello.
+     Con il BFF spento deve comparire l'esito onesto (errore), non un
+     verdetto fingibile. -->
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>prova BFF UI</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/data.js" defer></script>
+  <script src="js/engine.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/ai.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <div id="app"></div>
+  <pre id="esito">attesa</pre>
+  <script>
+    window.addEventListener("load", async function () {
+      const scrivi = (t) => { document.getElementById("esito").textContent += t; };
+      const attendi = (ms) => new Promise((r) => setTimeout(r, ms));
+      for (let i = 0; i < 15 && !AI.pronto; i++) await attendi(100);
+      scrivi("PRONTO=" + AI.pronto + " MODELLO=" + AI.modello + "\n");
+      apriMessaggio("MSG-01"); disegna();
+      analizzaEVai(); disegna();
+      const t0 = Date.now();
+      while (!stato.analisi && !stato.erroreAnalisi && Date.now() - t0 < 42000) await attendi(200);
+      const a = stato.analisi;
+      if (a) {
+        scrivi("MOTORE=" + (a.motore || "?") + " CAT=" + a.categoria.categoria + " GRAV=" + a.gravita.gravita +
+          "(" + a.gravita.punteggio + ") AREA=" + a.zona.zona + " UFF=" + a.routing.ufficio +
+          " DUP=" + a.duplicati.length + " PROVE=" + a.categoria.prove.length +
+          " TEMPO=" + (Date.now() - t0) + "ms\n");
+      } else if (stato.erroreAnalisi) {
+        scrivi("ESITO ONESTO: " + stato.erroreAnalisi + " TEMPO=" + (Date.now() - t0) + "ms\n");
+      } else {
+        scrivi("TIMEOUT: nessuna analisi ne' errore\n");
+      }
+    });
+  </script>
+</body>
+</html>

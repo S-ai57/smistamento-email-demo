@@ -1,0 +1,4 @@
+# la chiave del modello vive solo qui: mai dentro un archivio della demo
+.env
+
+.DS_Store

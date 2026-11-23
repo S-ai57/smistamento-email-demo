@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8">
+    <title>prova stati — Smistamento email</title>
+    <link rel="stylesheet" href="css/style.css">
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="js/data.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+      /* Percorre la demo come farebbe un operatore, senza clic veri:
+         serve a fotografare i 15 stati con Chrome headless e a controllare
+         che non ci siano errori di script. Non fa parte della demo:
+         si apre con prova-stati.html#5, #9, ...  (stato 1 = apertura).
+         Nella demo legge SOLO il modello (serve il BFF); qui gli stati
+         congelati usano l'analisi a regole con analisiRegolePerProva(),
+         che e' deterministica e non tocca la rete. */
+      const passo = Number((location.hash || "#1").slice(1)) || 1;
+      const clicca = (selettore) => {
+        const el = document.querySelector(selettore);
+        if (!el) throw new Error("manca l'elemento " + selettore);
+        if (el.disabled) throw new Error("elemento disabilitato: " + selettore);
+        el.click();
+      };
+      const finoAllaLettura = () => {
+        apriMessaggio("MSG-01");
+        analisiRegolePerProva();
+        disegna();
+      };
+      const finoAllInstradamento = () => {
+        finoAllaLettura();
+        clicca('[data-azione="passo"][data-p="3"]');
+        disegna();
+      };
+      const finoAllaRegistrazione = () => {
+        finoAllInstradamento();
+        clicca('[data-azione="registra"]');
+        fermaSmistamento(); /* la scena animata e' gia' partita: la chiudiamo per il colpo d'occhio */
+        disegna();
+      };
+
+      if (passo === 1) {
+        /* coda cosi' com'e' all'apertura */
+      } else if (passo === 2) {
+        finoAllaLettura();
+      } else if (passo === 3) {
+        finoAllInstradamento();
+      } else if (passo === 4) {
+        finoAllaRegistrazione();
+      } else if (passo === 5) {
+        finoAllaRegistrazione();
+        stato.vista = "registro";
+      } else if (passo === 6) {
+        finoAllaRegistrazione();
+        stato.aperta = stato.doc.segnalazioni[0].protocollo;
+        stato.vista = "dettaglio";
+      } else if (passo === 7) {
+        simulaArrivo();
+      } else if (passo === 8) {
+        apriMessaggio("MSG-05");
+      } else if (passo === 9) {
+        apriMessaggio("MSG-05");
+        analisiRegolePerProva();
+      } else if (passo === 10) {
+        // fotografia della fase intermedia bloccata a meta'
+        apriMessaggio("MSG-01");
+        stato.faseAnalisi = { indice: 3, dati: datiFaseRegole(analisiRegolePerProva()) };
+      } else if (passo === 11) {
+        // fase intermedia su un messaggio che il motore non sa classificare
+        apriMessaggio("MSG-05");
+        stato.faseAnalisi = { indice: 4, dati: datiFaseRegole(analisiRegolePerProva()) };
+      } else if (passo === 12) {
+        // casella con un messaggio aperto: corpo, allegati, pulsante Analizza
+        apriMessaggio("MSG-01");
+      } else if (passo === 13) {
+        cambiaCartella("inoltrate");
+      } else if (passo === 14) {
+        // il messaggio appena inoltrato si sposta nella sua cartella
+        finoAllaRegistrazione();
+        cambiaCartella("inoltrate");
+      } else if (passo === 15) {
+        // scena di smistamento congelata a meta': la mail e' in volo verso l'ufficio
+        finoAllInstradamento();
+        clicca('[data-azione="registra"]');
+        fermaSmistamento();
+        stato.passo = 4;
+        stato.faseSmista = Object.assign(datiSmistamento(), { passo: 1 });
+      } else {
+        throw new Error("stato non conosciuto: " + passo);
+      }
+      disegna();
+      document.title = "stato-" + passo;
+    </script>
+  </body>
+</html>
