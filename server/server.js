@@ -46,6 +46,7 @@ function rispondi(res, codice, oggetto) {
   res.writeHead(codice, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Private-Network": "true",
     "Content-Length": Buffer.byteLength(corpo),
   });
   res.end(corpo);
@@ -75,6 +76,9 @@ const server = http.createServer(async (req, res) => {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
+      /* pagine servite da internet (es. GitHub Pages) che chiamano il
+         BFF su localhost: il browser chiede anche questo */
+      "Access-Control-Allow-Private-Network": "true",
     });
     res.end();
     return;
