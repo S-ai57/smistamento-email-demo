@@ -34,26 +34,46 @@ avvia prima il BFF con doppio clic su **"Avvia con modello vero.command"**
 (sezione "Il modello vero dietro"); senza BFF la pagina si apre lo stesso e
 **Analizza** risponde onestamente che il modello non c'è.
 
-## Usarla da un altro computer (link dell'app)
+## Usarla da un altro computer (condividere la demo)
 
-L'interfaccia è pubblicata su **https://s-ai57.github.io/smistamento-email-demo/**:
-link sempre disponibile, nessuna installazione per guardare la demo.
+### 1. Link temporaneo protetto, col modello — consigliato
 
-Per far analizzare i messaggi a chi apre il link, sul **suo** computer serve il
-motore locale (è per questo che la chiave non esce mai dal proprio Mac):
+Dal Mac di chi ha la chiave (il tuo), con doppio clic su
+**"Condividi app col collega.command"**:
 
 ```bash
-git clone https://github.com/S-ai57/smistamento-email-demo.git
-cd smistamento-email-demo
-cp .env.example .env      # e metterci la SUA chiave del gateway
-open index.html           # apre la pagina, anche quella su GitHub Pages
-node server/server.js     # oppure doppio clic su "Avvia con modello vero.command"
+./"Condividi app col collega.command"   # (o doppio clic dal Finder)
 ```
 
-La pagina pubblicata chiama il BFF sul `localhost` di chi la apre: la prima
-volta Chrome (o Safari) chiede il permesso di raggiungere la rete locale,
-basta un **Consenti**. Senza BFF la pagina funziona comunque e `Analizza`
-risponde onestamente che il modello non c'è.
+Parte il motore locale e si crea un link **https temporaneo** già completo
+di token di accesso (`?t=...`), stampato e copiato negli appunti: mandalo
+in chat al collega. Lui apre e ha la demo **piena, col modello che legge i
+messaggi** — senza installare niente e senza chiave propria. Il modello
+gira sempre e solo sul Mac di chi condivide; la chiave non lascia mai il
+suo computer. Protezioni volute:
+
+- chi apre il link **senza token** naviga, ma `Analizza` risponde `401`
+  con un messaggio onesto: il modello non è usage libero
+- **chiudi la finestra del launcher = il link muore**: nessun servizio
+  sempre acceso in giro
+- il link cambia a ogni avvio: prendi sempre quello della finestra corrente
+- non postare il link in luoghi pubblici: chi ce l'ha può usare il modello;
+  per revocarlo, cambia `DEMO_TOKEN` nel `.env` e riavvia il launcher
+
+Nota: il collegamento passa da Cloudflare (tunnel rapido), quindi il testo
+dei messaggi transita cifrato da lì verso il tuo Mac, come accade già per
+il gateway del modello. Per una demo è la via rapida; per un uso formale
+valuterai un deploy vero (vedi BLUEPRINT).
+
+### 2. Link pubblico di sola consultazione (GitHub Pages)
+
+**https://s-ai57.github.io/smistamento-email-demo/** — interfaccia sempre
+online, per guardare la demo senza niente installato. Per far analizzare i
+messaggi da chi lo apre serve il BFF sul **suo** computer (clone del repo,
+proprio `.env` con la **sua** chiave, `node server/server.js`): la pagina
+lo raggiunge sul suo `localhost` e il browser chiede una volta il permesso
+di accedere alla rete locale, basta **Consenti**. Senza BFF la pagina
+funziona comunque e `Analizza` risponde onestamente che il modello non c'è.
 
 ## Il flusso, in quattro passi
 

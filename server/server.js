@@ -1,9 +1,14 @@
 /* ------------------------------------------------------------------
    BFF locale della demo: un unico processo Node, zero dipendenze.
-   Espone alla pagina due sole route:
+   Serve due cose:
      GET  /api/salute    -> il motore AI e' pronto? con che modello?
      POST /api/analizza  -> legge un messaggio e risponde l'analisi
+                            (con DEMO_TOKEN attivo chiede anche il token)
+     GET  /*             -> la app stessa: index.html, js/, css/, assets/
    Ascolta SOLO su 127.0.0.1: la chiave e il gateway restano locali.
+   Per condividere un link col modello ci si mette davanti un tunnel
+   HTTPS con "Condividi app col collega.command": cosi' il collega apre
+   un solo indirizzo, senza installare niente e senza chiave propria.
    Avvio:  node server/server.js   (legge ../.env)
    ------------------------------------------------------------------ */
 "use strict";
@@ -31,11 +36,73 @@ function leggiEnv() {
     apiKey: process.env.AI_API_KEY || valori.AI_API_KEY || null,
     modello: process.env.AI_MODEL || valori.AI_MODEL || null,
     porta: Number(process.env.AI_PORT || valori.AI_PORT || 8787),
+    demoToken: process.env.DEMO_TOKEN || valori.DEMO_TOKEN || null,
   };
 }
 
 const cfg = leggiEnv();
 const pronto = Boolean(cfg.baseUrl && cfg.apiKey && cfg.modello);
+
+/* -------------------- protezione del link condiviso --------------------
+   Con DEMO_TOKEN nel .env, /api/analizza accetta solo chi porta il token
+   (header X-Token o ?t=... nel link). Senza DEMO_TOKEN il BFF resta
+   aperto, ma allora e' solo locale: non va mai esposto su un tunnel. */
+function tokenOk(req) {
+  if (!cfg.demoToken) return true;
+  let dalLink = null;
+  try {
+    dalLink = new URL(req.url, "http://locale").searchParams.get("t");
+  } catch (e) { /* URL ballerina: conta solo l'header */ }
+  const ricevuto = req.headers["x-token"] || dalLink;
+  return ricevuto === cfg.demoToken;
+}
+
+/* -------------------- la app, servita da qui -------------------- */
+const RADICE = path.join(__dirname, "..");
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".txt": "text/plain; charset=utf-8",
+  ".woff2": "font/woff2",
+};
+
+function serviStatica(req, res) {
+  let percorso;
+  try {
+    percorso = decodeURIComponent(req.url.split("?")[0]);
+  } catch (e) {
+    rispondi(res, 400, { ok: false, motivo: "percorso non valido" });
+    return;
+  }
+  if (percorso === "/") percorso = "/index.html";
+  const file = path.normalize(path.join(RADICE, percorso));
+  const est = path.extname(file).toLowerCase();
+  /* niente uscite dalla cartella della demo e niente file senza
+     estensione nota: .env e i sorgenti server restano invisibili */
+  if (!file.startsWith(RADICE + path.sep) || !(est in MIME)) {
+    rispondi(res, 404, { ok: false, motivo: "non si trova (o non si serve)" });
+    return;
+  }
+  fs.readFile(file, (err, dati) => {
+    if (err) {
+      rispondi(res, 404, { ok: false, motivo: "non si trova" });
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": MIME[est],
+      "Cache-Control": "no-store",
+      "Content-Length": dati.length,
+    });
+    res.end(req.method === "HEAD" ? undefined : dati);
+  });
+}
 
 function ora() {
   return new Date().toTimeString().slice(0, 8);
@@ -75,7 +142,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, X-Token",
       /* pagine servite da internet (es. GitHub Pages) che chiamano il
          BFF su localhost: il browser chiede anche questo */
       "Access-Control-Allow-Private-Network": "true",
@@ -91,8 +158,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/api/analizza" && req.method === "POST") {
+  if (req.url.startsWith("/api/analizza") && req.method === "POST") {
     const t0 = Date.now();
+    if (!tokenOk(req)) {
+      console.log(`[smistam ${ora()}] analizza -> rifiutata: token demo mancante o errato`);
+      rispondi(res, 401, { ok: false, motivo: "token della demo mancante: riaprire il link ricevuto per intero (quello con ?t=...)" });
+      return;
+    }
     if (!pronto) {
       console.log(`[smistam ${ora()}] analizza -> rifiutata: BFF non configurato`);
       rispondi(res, 503, { ok: false, motivo: "BFF non configurato: manca .env" });
@@ -124,6 +196,11 @@ const server = http.createServer(async (req, res) => {
       console.log(`[smistam ${ora()}] analizza -> errore ${Date.now() - t0}ms · ${e.message}`);
       rispondi(res, 502, { ok: false, motivo: String(e.message || e).slice(0, 200) });
     }
+    return;
+  }
+
+  if ((req.method === "GET" || req.method === "HEAD") && !req.url.startsWith("/api/")) {
+    serviStatica(req, res);
     return;
   }
 

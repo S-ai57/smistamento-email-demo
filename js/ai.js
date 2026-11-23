@@ -7,8 +7,35 @@
    verifiche) e agli stati congelati di prova-stati.html.
    ------------------------------------------------------------------ */
 
+/* token della demo: chi apre il link ricevuto (quello con ?t=...) lo
+   memorizza qui nel proprio browser e lo riporta al BFF a ogni chiamata.
+   E' cio' che impedisce a sconosciuti di usare il modello col link. */
+function tokenDemo() {
+  try {
+    return localStorage.getItem("novaraservice.demoToken") || "";
+  } catch (e) {
+    return "";
+  }
+}
+(function memorizzaTokenDalLink() {
+  try {
+    const m = location.search.match(/[?&]t=([A-Za-z0-9_-]{4,128})/);
+    if (m) localStorage.setItem("novaraservice.demoToken", m[1]);
+  } catch (e) {
+    /* niente localStorage o link senza token: si procedera' senza */
+  }
+})();
+
 const AI = {
-  urlBase: "http://127.0.0.1:8787",
+  /* se la pagina e' servita dal BFF stesso (link del tunnel, oppure
+     http://127.0.0.1:8787) la chiamata e' same-origin: niente permessi
+     da concedere al browser. Altrimenti (file:// o GitHub Pages) il
+     BFF va raggiunto sul localhost di chi apre la pagina. */
+  urlBase: (function () {
+    const h = location.hostname || "";
+    const servitaDalBff = location.protocol.indexOf("http") === 0 && !/\.github\.io$/.test(h);
+    return servitaDalBff ? "" : "http://127.0.0.1:8787";
+  })(),
   pronto: false,
   modello: null,
 
@@ -16,7 +43,11 @@ const AI = {
      solo per il badge in testata: l'analisi lo verifica da sola. */
   async indaga() {
     try {
-      const resp = await fetch(this.urlBase + "/api/salute", { signal: AbortSignal.timeout(1500) });
+      const t = tokenDemo();
+      const resp = await fetch(this.urlBase + "/api/salute", {
+        headers: t ? { "X-Token": t } : {},
+        signal: AbortSignal.timeout(1500),
+      });
       const dati = await resp.json();
       this.pronto = Boolean(dati.ok);
       this.modello = dati.modello || null;
@@ -32,10 +63,13 @@ const AI = {
      messaggi leggibili mostrati nella schermata di esito. */
   async analizza(messaggio, aperte) {
     let resp;
+    const t = tokenDemo();
+    const intestazioni = { "Content-Type": "application/json" };
+    if (t) intestazioni["X-Token"] = t;
     try {
       resp = await fetch(this.urlBase + "/api/analizza", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: intestazioni,
         body: JSON.stringify({
           canale: messaggio.canale,
           oggetto: messaggio.oggetto,
@@ -48,7 +82,10 @@ const AI = {
       if (e && e.name === "TimeoutError") {
         throw new Error("il modello non ha risposto entro 45 secondi");
       }
-      throw new Error("BFF non raggiungibile su " + this.urlBase + ": avviare con «node server/server.js» o con «Avvia con modello vero.command»");
+      if (this.urlBase) {
+        throw new Error("BFF non raggiungibile su " + this.urlBase + ": avviare con «node server/server.js» o con «Avvia con modello vero.command»");
+      }
+      throw new Error("il motore di questa pagina non risponde: chi condivide il link deve riavviarlo («Condividi app col collega.command»)");
     }
     const dati = await resp.json().catch(() => null);
     if (!resp.ok || !dati || !dati.ok) {
