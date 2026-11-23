@@ -34,6 +34,27 @@ avvia prima il BFF con doppio clic su **"Avvia con modello vero.command"**
 (sezione "Il modello vero dietro"); senza BFF la pagina si apre lo stesso e
 **Analizza** risponde onestamente che il modello non c'è.
 
+## Usarla da un altro computer (link dell'app)
+
+L'interfaccia è pubblicata su **https://s-ai57.github.io/smistamento-email-demo/**:
+link sempre disponibile, nessuna installazione per guardare la demo.
+
+Per far analizzare i messaggi a chi apre il link, sul **suo** computer serve il
+motore locale (è per questo che la chiave non esce mai dal proprio Mac):
+
+```bash
+git clone https://github.com/S-ai57/smistamento-email-demo.git
+cd smistamento-email-demo
+cp .env.example .env      # e metterci la SUA chiave del gateway
+open index.html           # apre la pagina, anche quella su GitHub Pages
+node server/server.js     # oppure doppio clic su "Avvia con modello vero.command"
+```
+
+La pagina pubblicata chiama il BFF sul `localhost` di chi la apre: la prima
+volta Chrome (o Safari) chiede il permesso di raggiungere la rete locale,
+basta un **Consenti**. Senza BFF la pagina funziona comunque e `Analizza`
+risponde onestamente che il modello non c'è.
+
 ## Il flusso, in quattro passi
 
 | Passo | Cosa fa l'operatore | Cosa vede |
